@@ -1,0 +1,14 @@
+name: Vagrant
+on: [push]
+jobs:
+  libvirt:
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Checkout Git repository
+        uses: actions/checkout@v2
+      - name: Install vagrant
+        run: |
+          set -o pipefail
+          echo "deb [arch=amd64] https://apt.releases.hashicorp.com focal main" | sudo tee -a /etc/apt/sources.list.d/hashicorp.list
+          curl -fsSL https://apt.releases.hashicorp.com/gpg | sudo apt-key add -
+          sudo apt-get install vagrant
