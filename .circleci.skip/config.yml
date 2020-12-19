@@ -1,0 +1,67 @@
+# Use the latest 2.1 version of CircleCI pipeline process engine. See: https://circleci.com/docs/2.0/configuration-reference
+version: 2.1
+
+workflows:
+  version: 2
+  default:
+    jobs:
+      - libvirt
+
+jobs:
+  libvirt:
+    machine:
+      image: ubuntu-2004:202010-01
+    environment:
+      VAGRANT_DEFAULT_PROVIDER: libvirt
+    steps:
+      - checkout
+      - run:
+          name: Install vagrant
+          command: |
+            echo "deb [arch=amd64] https://apt.releases.hashicorp.com $(lsb_release -cs) main" | sudo tee -a /etc/apt/sources.list.d/hashicorp.list
+            curl -fsSL https://apt.releases.hashicorp.com/gpg | sudo apt-key add -
+            sudo apt-get update
+            sudo apt-get install -y vagrant
+      - run:
+          name: Install libvirt
+          command: |
+            sudo apt-get install -y bridge-utils qemu-kvm virtinst libvirt-daemon-system
+      - run:
+          name: Configure libvirtd
+          command: |
+            sudo adduser "$USER" libvirt || true
+            sudo systemctl restart libvirtd.service --no-pager
+            sudo systemctl status libvirtd.service --no-pager
+            sudo systemctl restart qemu-kvm.service --no-pager
+            sudo systemctl status qemu-kvm.service --no-pager
+      - run:
+          name: Check kvm
+          command: |
+            sudo kvm-ok || true
+      - run:
+          name: Install libvirt provider
+          command: |
+            sudo apt-get install -y ruby-dev libvirt-dev libssl-dev
+            sudo vagrant plugin install vagrant-libvirt
+      - restore_cache:
+          key: vagrant-boxe-debian10
+      - run:
+          name: Add box generic/debian10
+          command: |
+            sudo vagrant box add --provider=libvirt --box-version 3.1.6 generic/debian10
+      - save_cache:
+          key: vagrant-boxe-debian10
+          paths:
+            - ~/.vagrant.d/boxes/generic-VAGRANTSLASH-debian10
+      - run:
+          name: Run vagrant
+          command: |
+            cd source && sudo vagrant up
+      - run:
+          name: Show guest
+          command: |
+            cd source && sudo vagrant ssh -c env
+      - run:
+          name: Stop vagrant
+          command: |
+            cd source && sudo vagrant destroy --force

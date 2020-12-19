@@ -7,22 +7,8 @@ jobs:
       VAGRANT_DEFAULT_PROVIDER: libvirt
     steps:
 
-      - name: Install libvirt
-        run: |
-          sudo apt install qemu-kvm libvirt-daemon-system
-          sudo adduser $USER libvirt
-
-      - name: Check KVM
-        run: sudo kvm-ok
-
-      - name: Install vagrant
-        run: |
-          set -o pipefail
-          echo "deb [arch=amd64] https://apt.releases.hashicorp.com focal main" \
-          | sudo tee -a /etc/apt/sources.list.d/hashicorp.list
-          curl -fsSL https://apt.releases.hashicorp.com/gpg \
-          | sudo apt-key add -
-          sudo apt-get install -y vagrant
+      - name: Checkout Git repository
+        uses: actions/checkout@v2
 
       - name: Cache vagrant boxes
         uses: actions/cache@v2
@@ -31,20 +17,55 @@ jobs:
         with:
           path: ~/.vagrant.d/boxes/generic-VAGRANTSLASH-debian10
           key: ${{ runner.os }}-${{ env.cache-name }}-debian10
-          restore-keys: |
-            ${{ runner.os }}-${{ env.cache-name }}-
-            ${{ runner.os }}-
 
-      - name: Add box generic/debian10
-        run: vagrant box add --provider=libvirt --box-version 3.1.6 generic/debian10
+      - name: User info
+        run: |
+          set -x
+          env
+          id
+          pwd
+          echo $HOME
 
-      - name: Checkout Git repository
-        uses: actions/checkout@v2
+      # https://stackoverflow.com/questions/43235179/how-to-execute-ssh-keygen-without-prompt#43235320
+      - name: Generate a SSH key
+        run: |
+          set -x
+          ssh-keygen -q -t rsa -N '' <<< ""$'\n'"y" 2>&1 >/dev/null
+          ls -l /home/runner/.ssh/id_rsa
+
+      - name: Install dependencies
+        run: |
+          sudo ./install.dependencies.sh
+
+      #- name: Fix libvirtd confgiuration
+      #  run: |
+      #    echo "-- fix /etc/libvirt/libvirtd.conf"
+      #    sudo sed -i 's/#unix_sock_group = "libvirt"/unix_sock_group = "docker"/g' /etc/libvirt/libvirtd.conf
+      #    sudo sed -i 's/#unix_sock_ro_perms/unix_sock_ro_perms/g' /etc/libvirt/libvirtd.conf
+      #    sudo sed -i 's/#unix_sock_rw_perms/unix_sock_rw_perms/g' /etc/libvirt/libvirtd.conf
+      #    echo "-- grep /etc/libvirt/libvirtd.conf"
+      #    grep "unix_sock_" /etc/libvirt/libvirtd.conf
+      #    echo "-- restart service"
+      #    sudo systemctl restart libvirtd.service --no-pager
+      #    systemctl status libvirtd.service --no-pager
+      #    systemctl status libvirtd-ro.socket --no-pager
+      #    systemctl status libvirtd.socket --no-pager
+      #    systemctl status libvirtd-admin.socket --no-pager
+
+      - name: Checkout homecloud-ansible
+        run: git checkout https://github.com/tmorin/homecloud-ansible.git
 
       - name: Run vagrant
-        run: vagrant up
-        working-directory: source
+        run: |
+          sudo ./build.homecloud.sh
+        working-directory: homecloud-ansible
 
-      - name: Stop vagrant
-        run: vagrant destroy --force
-        working-directory: source
+      #- name: Run vagrant
+      #  run: vagrant up
+      #  working-directory: source
+      #- name: Show guest
+      #  run: vagrant ssh -c env
+      #  working-directory: source
+      #- name: Stop vagrant
+      #  run: vagrant destroy --force
+      #  working-directory: source
