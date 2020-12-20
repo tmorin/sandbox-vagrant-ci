@@ -2,6 +2,7 @@ name: Vagrant
 on: [ push ]
 jobs:
   libvirt:
+    if: ${{ false }}
     runs-on: ubuntu-20.04
     env:
       VAGRANT_DEFAULT_PROVIDER: libvirt
