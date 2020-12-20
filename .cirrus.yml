@@ -1,4 +1,9 @@
-task:
-  install_vagrant_scripts: sudo install.vagrant.sh
-  install_libvirt_scripts: sudo install.libvirt.sh
-
+install_vagrant_task:
+  scripts: sudo install.vagrant.sh
+install_libvirt_task:
+  scripts: sudo install.libvirt.sh
+publish_task:
+  depends_on:
+    - install_vagrant
+    - install_libvirt
+  script: configure.vagrant.sh
